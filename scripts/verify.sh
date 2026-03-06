@@ -29,7 +29,14 @@ check() {
     fi
 }
 
-[[ -f "$ENV_FILE" ]] && source "$ENV_FILE"
+if [[ -f "$ENV_FILE" ]]; then
+    # .env 안전성 검사
+    if grep -Eq '`|\$\(' "$ENV_FILE" 2>/dev/null; then
+        echo -e "  ${RED}[WARN]${NC} .env에 위험한 셸 구문이 포함되어 있습니다"
+        exit 1
+    fi
+    source "$ENV_FILE"
+fi
 SERVICE_USER="${SERVICE_USER:-claudeweb}"
 CLOUDCLI_PORT="${CLOUDCLI_PORT:-3001}"
 DOMAIN="${DOMAIN:-}"
@@ -54,16 +61,18 @@ check "CloudCLI 설치됨" sudo -u "${SERVICE_USER}" bash -c 'source ~/.nvm/nvm.
 
 echo ""
 echo "▸ 설정 파일"
-check "~/.claude.json 존재" test -f "/home/${SERVICE_USER}/.claude.json"
-check "~/.claude/settings.json 존재" test -f "/home/${SERVICE_USER}/.claude/settings.json"
-check "workspace 디렉토리 존재" test -d "/home/${SERVICE_USER}/workspace/documents"
-check "auto-update.sh 존재" test -x "/home/${SERVICE_USER}/auto-update.sh"
+HOME_DIR=$(getent passwd "${SERVICE_USER}" 2>/dev/null | cut -d: -f6)
+[[ -n "${HOME_DIR}" ]] || HOME_DIR="/home/${SERVICE_USER}"
+check "~/.claude.json 존재" test -f "${HOME_DIR}/.claude.json"
+check "~/.claude/settings.json 존재" test -f "${HOME_DIR}/.claude/settings.json"
+check "workspace 디렉토리 존재" test -d "${HOME_DIR}/workspace/documents"
+check "auto-update.sh 존재" test -x "${HOME_DIR}/auto-update.sh"
 
 echo ""
 echo "▸ 서비스"
 check "claudeweb 서비스 활성화" systemctl is-enabled claudeweb
 check "claudeweb 서비스 실행 중" systemctl is-active claudeweb
-check "포트 ${CLOUDCLI_PORT} 리스닝" ss -tlnp "| grep :${CLOUDCLI_PORT}"
+check "포트 ${CLOUDCLI_PORT} 리스닝" bash -c "ss -tlnp | grep -q :${CLOUDCLI_PORT}"
 
 echo ""
 echo "▸ 웹 접근"
@@ -75,7 +84,7 @@ fi
 
 echo ""
 echo "▸ Cron 설정"
-check "자동 업데이트 cron 등록됨" sudo -u "${SERVICE_USER}" crontab -l "| grep -q auto-update"
+check "자동 업데이트 cron 등록됨" bash -c "sudo -u ${SERVICE_USER} crontab -l | grep -q auto-update"
 check "sudoers 설정 존재" test -f /etc/sudoers.d/claudeweb
 
 echo ""
