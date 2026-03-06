@@ -71,9 +71,9 @@ log "서비스 유저: ${SERVICE_USER}"
 step "Step 1/7: 시스템 패키지 설치"
 
 apt-get update -qq
-apt-get install -y -qq tmux git curl cron pandoc nginx certbot python3-certbot-nginx > /dev/null 2>&1
+apt-get install -y -qq build-essential tmux git curl cron pandoc nginx certbot python3-certbot-nginx > /dev/null 2>&1
 
-log "tmux, git, cron, pandoc, nginx, certbot 설치 완료"
+log "build-essential, tmux, git, cron, pandoc, nginx, certbot 설치 완료"
 
 # ── Step 2: 서비스 유저 생성 ─────────────────────────────────
 
