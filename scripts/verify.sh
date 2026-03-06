@@ -87,6 +87,15 @@ echo "▸ Cron 설정"
 check "자동 업데이트 cron 등록됨" bash -c "sudo -u ${SERVICE_USER} crontab -l | grep -q auto-update"
 check "sudoers 설정 존재" test -f /etc/sudoers.d/claudeweb
 
+if [[ -n "${MEM0_HOST:-}" ]]; then
+    echo ""
+    echo "▸ Mem0 MCP (자체 서버)"
+    check "Mem0 venv 존재" test -d "${HOME_DIR}/.mcp-venv/mem0"
+    check "Mem0 서버 스크립트 존재" test -f "${HOME_DIR}/.mcp-scripts/mem0_server.py"
+    check "Mem0 MCP Python 의존성 설치됨" "${HOME_DIR}/.mcp-venv/mem0/bin/python3" -c "import mcp, httpx"
+    check "Mem0 서버 연결 확인" curl -sf -o /dev/null --max-time 5 "${MEM0_HOST}"
+fi
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo -e "  결과: ${GREEN}${PASS} PASS${NC} / ${RED}${FAIL} FAIL${NC}"

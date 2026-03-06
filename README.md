@@ -55,7 +55,7 @@ Vercel (또는 DNS 프로바이더)에서:
 - [Brave Search API Key](https://api.search.brave.com/app/keys)
 - [Exa API Key](https://dashboard.exa.ai/api-keys)
 - (선택) Supabase URL + Service Role Key
-- (선택) 자체 Mem0 서버 URL + Key
+- (선택) 자체 Mem0 서버 URL + Bearer 토큰 (예: `https://mem0.example.com`)
 
 ## 설치 (서버에서)
 

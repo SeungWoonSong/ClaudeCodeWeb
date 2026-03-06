@@ -164,6 +164,19 @@ chown "${SERVICE_USER}:${SERVICE_USER}" "${HOME_DIR}/.claude.json"
 chmod 600 "${HOME_DIR}/.claude.json"
 log "claude.json 생성 완료"
 
+# Mem0 MCP: Python venv + 커스텀 서버 스크립트 설치
+if [[ -n "${MEM0_HOST:-}" ]]; then
+    log "Mem0 MCP 자체 서버 설정 중..."
+    sudo -u "${SERVICE_USER}" python3 -m venv "${HOME_DIR}/.mcp-venv/mem0"
+    sudo -u "${SERVICE_USER}" "${HOME_DIR}/.mcp-venv/mem0/bin/pip" install -q --upgrade pip
+    sudo -u "${SERVICE_USER}" "${HOME_DIR}/.mcp-venv/mem0/bin/pip" install -q "mcp>=1.0" httpx
+    sudo -u "${SERVICE_USER}" mkdir -p "${HOME_DIR}/.mcp-scripts"
+    cp "${SCRIPT_DIR}/scripts/mem0_server.py" "${HOME_DIR}/.mcp-scripts/mem0_server.py"
+    chown "${SERVICE_USER}:${SERVICE_USER}" "${HOME_DIR}/.mcp-scripts/mem0_server.py"
+    chmod +x "${HOME_DIR}/.mcp-scripts/mem0_server.py"
+    log "Mem0 MCP venv + 서버 스크립트 설치 완료"
+fi
+
 # MCP settings.json — Python으로 안전한 JSON 생성 (값 이스케이프 보장)
 SETTINGS_FILE="${HOME_DIR}/.claude/settings.json"
 
@@ -172,9 +185,11 @@ export _EXA_KEY="${EXA_API_KEY}"
 export _DOC_DIR="${HOME_DIR}/workspace/documents"
 export _SUPA_URL="${SUPABASE_URL:-}"
 export _SUPA_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}"
-export _MEM0_URL="${MEM0_API_URL:-}"
+export _MEM0_HOST="${MEM0_HOST:-}"
 export _MEM0_KEY="${MEM0_API_KEY:-}"
 export _MEM0_USER="${MEM0_USER_ID:-pm-default}"
+export _MEM0_VENV="${HOME_DIR}/.mcp-venv/mem0"
+export _MEM0_WRAPPER="${HOME_DIR}/.mcp-scripts/mem0_server.py"
 export _SETTINGS_FILE="${SETTINGS_FILE}"
 
 python3 << 'MCPPY'
@@ -209,14 +224,14 @@ if os.environ.get("_SUPA_URL") and os.environ.get("_SUPA_KEY"):
         }
     }
 
-if os.environ.get("_MEM0_URL"):
+if os.environ.get("_MEM0_HOST"):
     servers["mem0"] = {
-        "command": "uvx",
-        "args": ["mem0-mcp"],
+        "command": os.environ["_MEM0_VENV"] + "/bin/python3",
+        "args": [os.environ["_MEM0_WRAPPER"]],
         "env": {
-            "MEM0_API_URL": os.environ["_MEM0_URL"],
+            "MEM0_HOST": os.environ["_MEM0_HOST"],
             "MEM0_API_KEY": os.environ.get("_MEM0_KEY", ""),
-            "MEM0_DEFAULT_USER_ID": os.environ.get("_MEM0_USER", "pm-default")
+            "MEM0_USER_ID": os.environ.get("_MEM0_USER", "pm-default")
         }
     }
 
@@ -227,26 +242,15 @@ with open(os.environ["_SETTINGS_FILE"], "w") as f:
     f.write("\n")
 MCPPY
 
-unset _BRAVE_KEY _EXA_KEY _DOC_DIR _SUPA_URL _SUPA_KEY _MEM0_URL _MEM0_KEY _MEM0_USER _SETTINGS_FILE
+unset _BRAVE_KEY _EXA_KEY _DOC_DIR _SUPA_URL _SUPA_KEY _MEM0_HOST _MEM0_KEY _MEM0_USER _MEM0_VENV _MEM0_WRAPPER _SETTINGS_FILE
 chown "${SERVICE_USER}:${SERVICE_USER}" "${SETTINGS_FILE}"
 chmod 600 "${SETTINGS_FILE}"
 log "MCP settings.json 생성 완료"
 
 # 선택 MCP 로그
 [[ -n "${SUPABASE_URL:-}" ]] && log "Supabase MCP 추가"
-if [[ -n "${MEM0_API_URL:-}" ]]; then
-    log "Mem0 MCP 추가 (자체 서버: ${MEM0_API_URL})"
-fi
-
-# Mem0 MCP 사용 시 uvx (Python uv) 필요
-if [[ -n "${MEM0_API_URL:-}" ]]; then
-    if ! sudo -u "${SERVICE_USER}" bash -c 'command -v uvx' &>/dev/null; then
-        warn "Mem0 MCP에 필요한 uvx를 설치합니다..."
-        sudo -u "${SERVICE_USER}" bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
-        log "uvx 설치 완료"
-    else
-        log "uvx 이미 설치됨"
-    fi
+if [[ -n "${MEM0_HOST:-}" ]]; then
+    log "Mem0 MCP 추가 (자체 서버: ${MEM0_HOST})"
 fi
 
 # ── Step 5: systemd 서비스 ───────────────────────────────────

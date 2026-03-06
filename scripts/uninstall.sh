@@ -61,6 +61,10 @@ echo -e "${GREEN}[✓]${NC} Nginx 설정 삭제"
 rm -f /etc/sudoers.d/claudeweb
 echo -e "${GREEN}[✓]${NC} sudoers 삭제"
 
+# 서비스 환경 파일 삭제
+rm -f /etc/claudeweb.env
+echo -e "${GREEN}[✓]${NC} 서비스 환경 파일 삭제"
+
 # 유저 삭제 (홈 디렉토리 포함)
 if id "${SERVICE_USER}" &>/dev/null; then
     # crontab 삭제
